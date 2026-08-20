@@ -25,7 +25,7 @@ export const ApartmentsPage: React.FC = () => {
       if (search) params.search = search;
 
       const res = await api.get('/apartamentos', { params });
-      if (res.data.success) {
+      if (res.data?.success && res.data?.apartments) {
         setApartments(res.data.apartments);
       }
     } catch (error) {
@@ -212,7 +212,7 @@ export const ApartmentsPage: React.FC = () => {
                     </td>
 
                     <td className="p-4 font-display font-bold text-slate-900">
-                      Q{apt.maintenanceFeeGtq.toFixed(2)}
+                      Q{(apt.maintenanceFeeGtq || 350).toFixed(2)}
                     </td>
 
                     <td className="p-4 text-right">

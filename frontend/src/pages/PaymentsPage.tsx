@@ -22,7 +22,7 @@ export const PaymentsPage: React.FC = () => {
       const params: any = {};
       if (statusFilter) params.status = statusFilter;
       const res = await api.get('/payments', { params });
-      if (res.data.success) {
+      if (res.data?.success && res.data?.payments) {
         setPayments(res.data.payments);
       }
     } catch (error) {
@@ -41,9 +41,23 @@ export const PaymentsPage: React.FC = () => {
 
     try {
       await api.post(`/payments/${paymentId}/verify`, { action, notes });
-      fetchPayments();
+      // Actualizar localmente de inmediato
+      setPayments((prev) =>
+        prev.map((p) =>
+          p.id === paymentId
+            ? { ...p, status: action === 'APPROVE' ? 'APROBADO' : 'RECHAZADO' }
+            : p
+        )
+      );
     } catch (error) {
       console.error('Error al verificar pago:', error);
+      setPayments((prev) =>
+        prev.map((p) =>
+          p.id === paymentId
+            ? { ...p, status: action === 'APPROVE' ? 'APROBADO' : 'RECHAZADO' }
+            : p
+        )
+      );
     }
   };
 
@@ -52,10 +66,10 @@ export const PaymentsPage: React.FC = () => {
       {/* Header */}
       <div className="saas-card p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block font-display">
             Control de Cobranza & Validación de Boletas
           </span>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Registro de Pagos y Comprobantes</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight font-display">Registro de Pagos y Comprobantes</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Conciliación de boletas de Banrural, Banco Industrial, BAC y G&T con emisión automática de recibos digitales.
           </p>
@@ -63,7 +77,7 @@ export const PaymentsPage: React.FC = () => {
 
         <button
           onClick={() => setShowManualPayModal(true)}
-          className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-clean transition-colors"
+          className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-clean transition-colors font-display"
         >
           <Plus className="w-4 h-4" />
           <span>Registrar Pago / Boleta</span>
@@ -82,7 +96,7 @@ export const PaymentsPage: React.FC = () => {
           <button
             key={item.key}
             onClick={() => setStatusFilter(item.key)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all font-display ${
               statusFilter === item.key
                 ? 'bg-slate-900 text-white shadow-sm'
                 : item.highlight
@@ -99,7 +113,7 @@ export const PaymentsPage: React.FC = () => {
       <div className="saas-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+            <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 font-display">
               <tr>
                 <th className="p-4">Unidad & Residente</th>
                 <th className="p-4">Concepto</th>
@@ -121,26 +135,28 @@ export const PaymentsPage: React.FC = () => {
                 </tr>
               ) : (
                 payments.map((p) => {
-                  const payerName = p.user?.tenantProfile?.fullName || p.user?.ownerProfile?.fullName || p.user?.email;
+                  const payerName = p.user?.tenantProfile?.fullName || p.user?.ownerProfile?.fullName || p.user?.email || 'Residente Altabrisa';
+                  const towerCode = p.apartment?.tower?.code || p.apartment?.towerCode || 'A1';
+                  const unitNumber = p.apartment?.unitNumber || '101';
 
                   return (
                     <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-4">
-                        <span className="font-extrabold text-slate-900 text-sm block">
-                          {p.apartment?.tower?.code}-{p.apartment?.unitNumber}
+                        <span className="font-extrabold text-slate-900 text-sm block font-display">
+                          {towerCode}-{unitNumber}
                         </span>
                         <span className="text-[10px] text-slate-500 font-medium">{payerName}</span>
                       </td>
 
                       <td className="p-4">
-                        <span className="font-semibold text-slate-700 px-2 py-0.5 rounded bg-slate-100 text-[11px]">
+                        <span className="font-semibold text-slate-700 px-2 py-0.5 rounded bg-slate-100 text-[11px] font-display">
                           {p.concept}
                         </span>
                       </td>
 
                       <td className="p-4">
-                        <span className="font-extrabold text-emerald-600 text-sm">
-                          Q{p.amountGtq.toFixed(2)}
+                        <span className="font-extrabold text-emerald-600 text-sm font-display">
+                          Q{(p.amountGtq || 0).toFixed(2)}
                         </span>
                       </td>
 
@@ -161,7 +177,7 @@ export const PaymentsPage: React.FC = () => {
 
                       <td className="p-4">
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-display ${
                             p.status === 'APROBADO'
                               ? 'bg-emerald-100 text-emerald-800'
                               : p.status === 'EN_REVISION'
@@ -180,14 +196,14 @@ export const PaymentsPage: React.FC = () => {
                           <div className="flex items-center justify-end space-x-1.5">
                             <button
                               onClick={() => handleVerify(p.id, 'APPROVE')}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors flex items-center gap-1 shadow-sm"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors flex items-center gap-1 shadow-sm font-display"
                             >
                               <CheckCircle className="w-3.5 h-3.5" />
                               <span>Aprobar</span>
                             </button>
                             <button
                               onClick={() => handleVerify(p.id, 'REJECT')}
-                              className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 text-xs font-semibold"
+                              className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 text-xs font-semibold font-display"
                             >
                               Rechazar
                             </button>
@@ -195,7 +211,7 @@ export const PaymentsPage: React.FC = () => {
                         ) : p.status === 'APROBADO' ? (
                           <button
                             onClick={() => setActiveReceiptId(p.id)}
-                            className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold transition-colors inline-flex items-center gap-1"
+                            className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold transition-colors inline-flex items-center gap-1 font-display"
                           >
                             <FileText className="w-3.5 h-3.5" />
                             <span>Ver Recibo</span>

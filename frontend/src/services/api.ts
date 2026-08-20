@@ -7,6 +7,8 @@ import {
   mockOwnerProfiles,
   mockTenantProfiles,
   mockNotifications,
+  mockPaymentsList,
+  mockProfileChangeRequests,
 } from './mockData';
 
 const api = axios.create({
@@ -22,9 +24,9 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Mock handler universal para producción estática
-export const handleMockFallback = (url: string = '', method: string = 'get', data?: any): any => {
-  const cleanUrl = url.replace('/api', '').split('?')[0];
+// Mock handler universal e interactivo para producción estática
+export const handleMockFallback = (url: string = '', method: string = 'get', data?: any, params?: any): any => {
+  const cleanUrl = url.toLowerCase().replace('/api', '').split('?')[0];
 
   let responseData: any = { success: true, message: 'Operación completada exitosamente.' };
 
@@ -73,7 +75,7 @@ export const handleMockFallback = (url: string = '', method: string = 'get', dat
       : {
           id: 'usr-mock-active',
           email: 'duena@altabrisa.gt',
-          name: 'Dueña / Administradora',
+          name: 'Dueña / Administradora General',
           role: 'SUPER_ADMIN',
         };
     responseData = { success: true, user };
@@ -89,11 +91,14 @@ export const handleMockFallback = (url: string = '', method: string = 'get', dat
     responseData = { success: true, stats: mockDashboardStats };
   }
 
-  // 5. Towers List & Details
+  // 5. Towers List & Details (2D Matrix)
   else if (cleanUrl.includes('tower') || cleanUrl.includes('torre')) {
-    if (cleanUrl.includes('/towers/') || cleanUrl.split('/').length > 2) {
-      const code = cleanUrl.split('/').pop() || 'A1';
-      const towerApts = mockApartments.filter((a) => a.towerCode === code || a.towerCode === code.toUpperCase());
+    const parts = cleanUrl.split('/').filter(Boolean);
+    const lastPart = parts[parts.length - 1];
+
+    if (parts.length >= 2 && lastPart !== 'towers' && lastPart !== 'torres') {
+      const code = lastPart.toUpperCase();
+      const towerApts = mockApartments.filter((a) => a.towerCode === code);
       const finalApts = towerApts.length > 0 ? towerApts : mockApartments.slice(0, 16);
 
       const levels: any = { 1: [], 2: [], 3: [], 4: [] };
@@ -106,8 +111,8 @@ export const handleMockFallback = (url: string = '', method: string = 'get', dat
         success: true,
         tower: {
           id: `tow-${code}`,
-          code: code.toUpperCase(),
-          sector: code.charAt(0).toUpperCase(),
+          code,
+          sector: code.charAt(0),
           totalLevels: 4,
           levels,
         },
@@ -117,18 +122,54 @@ export const handleMockFallback = (url: string = '', method: string = 'get', dat
     }
   }
 
-  // 6. Apartments Directory & Details
+  // 6. WhatsApp dynamic links
+  else if (cleanUrl.includes('whatsapp')) {
+    const phone = (data?.phone || '50237373745').replace(/\D/g, '');
+    const cleanPhone = phone.length === 8 ? `502${phone}` : phone;
+    const message = encodeURIComponent(`Hola ${data?.name || ''}, le saludamos de Residenciales Altabrisa referente a su unidad ${data?.towerCode || ''}-${data?.unitNumber || ''}.`);
+    responseData = { success: true, whatsappUrl: `https://wa.me/${cleanPhone}?text=${message}` };
+  }
+
+  // 7. Apartments Directory & Details
   else if (cleanUrl.includes('apartamento') || cleanUrl.includes('apartment')) {
-    if (cleanUrl.split('/').length > 2 && !cleanUrl.includes('status') && !cleanUrl.includes('service')) {
-      const id = cleanUrl.split('/').pop();
-      const apt = mockApartments.find((a) => a.id === id) || mockApartments[0];
+    const parts = cleanUrl.split('/').filter(Boolean);
+    const lastPart = parts[parts.length - 1];
+
+    // Single Apartment Detail 360°
+    if (parts.length >= 2 && lastPart !== 'apartamentos' && lastPart !== 'apartments' && !lastPart.includes('status') && !lastPart.includes('service')) {
+      const id = lastPart;
+      const apt = mockApartments.find((a) => a.id === id || a.unitNumber === id) || mockApartments[0];
       responseData = { success: true, apartment: apt };
     } else {
-      responseData = { success: true, apartments: mockApartments };
+      // List of Apartments with Filters
+      let filtered = [...mockApartments];
+      const towerFilter = params?.towerCode;
+      const statusFilter = params?.status;
+      const searchFilter = params?.search?.toLowerCase();
+
+      if (towerFilter) {
+        filtered = filtered.filter((a) => a.towerCode === towerFilter);
+      }
+      if (statusFilter) {
+        filtered = filtered.filter((a) => a.status === statusFilter);
+      }
+      if (searchFilter) {
+        filtered = filtered.filter(
+          (a) =>
+            a.unitNumber.toLowerCase().includes(searchFilter) ||
+            a.towerCode?.toLowerCase().includes(searchFilter) ||
+            a.model?.name.toLowerCase().includes(searchFilter) ||
+            a.tenant?.fullName.toLowerCase().includes(searchFilter) ||
+            a.owner?.fullName.toLowerCase().includes(searchFilter) ||
+            a.powerMeterNumber?.toLowerCase().includes(searchFilter)
+        );
+      }
+
+      responseData = { success: true, apartments: filtered };
     }
   }
 
-  // 7. Clients (Owners & Tenants)
+  // 8. Clients (Owners & Tenants)
   else if (cleanUrl.includes('owner') || cleanUrl.includes('propietario')) {
     responseData = { success: true, owners: mockOwnerProfiles };
   } else if (cleanUrl.includes('tenant') || cleanUrl.includes('inquilino')) {
@@ -137,12 +178,17 @@ export const handleMockFallback = (url: string = '', method: string = 'get', dat
     responseData = { success: true, owners: mockOwnerProfiles, tenants: mockTenantProfiles };
   }
 
-  // 8. Contracts
+  // 9. Contracts
   else if (cleanUrl.includes('contract') || cleanUrl.includes('contrato')) {
-    responseData = { success: true, contracts: mockContracts };
+    let filtered = [...mockContracts];
+    const statusFilter = params?.status;
+    if (statusFilter) {
+      filtered = filtered.filter((c) => c.status === statusFilter);
+    }
+    responseData = { success: true, contracts: filtered };
   }
 
-  // 9. Payments & Official Receipts
+  // 10. Official Receipts
   else if (cleanUrl.includes('receipt') || cleanUrl.includes('recibo')) {
     responseData = {
       success: true,
@@ -162,27 +208,23 @@ export const handleMockFallback = (url: string = '', method: string = 'get', dat
           'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ALTABRISA-VALID-REC-00124',
       },
     };
-  } else if (cleanUrl.includes('payment') || cleanUrl.includes('pago')) {
-    responseData = { success: true, payments: mockDashboardStats.recentPayments };
   }
 
-  // 10. Audit Change Requests
-  else if (cleanUrl.includes('request') || cleanUrl.includes('solicitud')) {
+  // 11. Payments Control
+  else if (cleanUrl.includes('payment') || cleanUrl.includes('pago')) {
+    let filtered = [...mockPaymentsList];
+    const statusFilter = params?.status;
+    if (statusFilter) {
+      filtered = filtered.filter((p) => p.status === statusFilter);
+    }
+    responseData = { success: true, payments: filtered };
+  }
+
+  // 12. Audit Authorization Requests
+  else if (cleanUrl.includes('request') || cleanUrl.includes('solicitud') || cleanUrl.includes('auditoria')) {
     responseData = {
       success: true,
-      requests: [
-        {
-          id: 'req-1',
-          userId: 'usr-tenant-1',
-          user: { email: 'juan.perez@inquilino.gt', tenantProfile: { fullName: 'Juan José Pérez' } },
-          fieldName: 'phonePrimary',
-          oldValue: '+502 5874-9632',
-          newValue: '+502 4112-9900',
-          reason: 'Nueva línea corporativa de residencia',
-          status: 'PENDIENTE',
-          createdAt: new Date().toISOString(),
-        },
-      ],
+      requests: mockProfileChangeRequests,
     };
   }
 
@@ -205,7 +247,6 @@ api.interceptors.response.use(
         response.data.includes('<html') ||
         response.data.includes('id="root"'))
     ) {
-      console.warn('⚡ Servidor devolvió HTML, activando adaptador de datos interactivo:', response.config?.url);
       let parsedData: any = undefined;
       try {
         if (typeof response.config?.data === 'string' && response.config.data.startsWith('{')) {
@@ -214,13 +255,12 @@ api.interceptors.response.use(
       } catch (e) {
         parsedData = undefined;
       }
-      return handleMockFallback(response.config?.url, response.config?.method, parsedData);
+      return handleMockFallback(response.config?.url, response.config?.method, parsedData, response.config?.params);
     }
 
     return response;
   },
   async (error) => {
-    console.warn('⚡ API Backend no detectada o error de red, usando adaptador interactivo:', error.config?.url);
     let parsedData: any = undefined;
     try {
       if (typeof error.config?.data === 'string' && error.config.data.startsWith('{')) {
@@ -229,7 +269,7 @@ api.interceptors.response.use(
     } catch (e) {
       parsedData = undefined;
     }
-    const mockResult = handleMockFallback(error.config?.url, error.config?.method, parsedData);
+    const mockResult = handleMockFallback(error.config?.url, error.config?.method, parsedData, error.config?.params);
     return Promise.resolve(mockResult);
   }
 );

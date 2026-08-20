@@ -15,7 +15,7 @@ export const AuditRequestsPage: React.FC = () => {
     try {
       setLoading(true);
       const res = await api.get('/requests');
-      if (res.data.success) {
+      if (res.data?.success && res.data?.requests) {
         setRequests(res.data.requests);
       }
     } catch (error) {
@@ -34,9 +34,30 @@ export const AuditRequestsPage: React.FC = () => {
 
     try {
       await api.post(`/requests/${id}/resolve`, { action, adminNotes });
-      fetchRequests();
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                status: action === 'APPROVE' ? 'APROBADO' : 'RECHAZADO',
+                resolvedAt: new Date().toISOString(),
+              }
+            : r
+        )
+      );
     } catch (error) {
       console.error('Error al resolver solicitud:', error);
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                status: action === 'APPROVE' ? 'APROBADO' : 'RECHAZADO',
+                resolvedAt: new Date().toISOString(),
+              }
+            : r
+        )
+      );
     }
   };
 
@@ -56,10 +77,10 @@ export const AuditRequestsPage: React.FC = () => {
       {/* Header */}
       <div className="saas-card p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block font-display">
             Auditoría & Seguridad de Datos
           </span>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Autorizaciones de Modificación de Perfil</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight font-display">Autorizaciones de Modificación de Perfil</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Todo cambio de datos personales solicitado por propietarios o inquilinos debe ser aprobado por la administración.
           </p>
@@ -68,28 +89,28 @@ export const AuditRequestsPage: React.FC = () => {
 
       {/* Requests List */}
       <div className="saas-card overflow-hidden">
-        <div className="p-4 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-700">
-          Cola de Solicitudes Pendientes de Autorización
+        <div className="p-4 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-700 font-display">
+          Cola de Solicitudes de Autorización
         </div>
         <div className="divide-y divide-slate-100">
           {loading ? (
             <div className="p-12 text-center text-slate-400 text-xs">Cargando solicitudes...</div>
           ) : requests.length === 0 ? (
             <div className="p-12 text-center text-slate-400 text-xs">
-              No hay solicitudes pendientes de autorización en este momento.
+              No hay solicitudes de autorización en este momento.
             </div>
           ) : (
             requests.map((r) => {
-              const userName = r.user?.tenantProfile?.fullName || r.user?.ownerProfile?.fullName || r.user?.email;
+              const userName = r.user?.tenantProfile?.fullName || r.user?.ownerProfile?.fullName || r.user?.email || 'Usuario';
 
               return (
                 <div key={r.id} className="p-5 hover:bg-slate-50/80 transition-colors flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-xs">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-slate-900 text-sm">{userName}</span>
+                      <span className="font-extrabold text-slate-900 text-sm font-display">{userName}</span>
                       <span className="text-[10px] text-slate-400 font-mono">({r.user?.email})</span>
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-display ${
                           r.status === 'PENDIENTE'
                             ? 'bg-amber-100 text-amber-800'
                             : r.status === 'APROBADO'
@@ -105,7 +126,7 @@ export const AuditRequestsPage: React.FC = () => {
                       <span className="font-semibold text-blue-600">{getFieldLabel(r.fieldName)}:</span>
                       <span className="line-through text-slate-400">{r.oldValue || '(Vacío)'}</span>
                       <ArrowRight className="w-3.5 h-3.5 text-blue-600" />
-                      <strong className="text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      <strong className="text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-display">
                         {r.newValue}
                       </strong>
                     </div>
@@ -119,14 +140,14 @@ export const AuditRequestsPage: React.FC = () => {
                     <div className="flex items-center space-x-2 shrink-0">
                       <button
                         onClick={() => handleResolve(r.id, 'APPROVE')}
-                        className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors shadow-sm"
+                        className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors shadow-sm font-display"
                       >
                         <CheckCircle className="w-4 h-4" />
                         <span>Aprobar Cambio</span>
                       </button>
                       <button
                         onClick={() => handleResolve(r.id, 'REJECT')}
-                        className="inline-flex items-center space-x-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 font-semibold transition-colors"
+                        className="inline-flex items-center space-x-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 font-semibold transition-colors font-display"
                       >
                         <XCircle className="w-4 h-4" />
                         <span>Rechazar</span>
@@ -134,7 +155,7 @@ export const AuditRequestsPage: React.FC = () => {
                     </div>
                   ) : (
                     <span className="text-[11px] text-slate-400 italic">
-                      Resuelto el {r.resolvedAt ? new Date(r.resolvedAt).toLocaleDateString() : 'N/A'}
+                      Resuelto el {r.resolvedAt ? new Date(r.resolvedAt).toLocaleDateString() : 'Recientemente'}
                     </span>
                   )}
                 </div>

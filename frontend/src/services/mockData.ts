@@ -7,6 +7,8 @@ import {
   TenantContract,
   NotificationItem,
   ApartmentModel,
+  Payment,
+  ProfileChangeRequest,
 } from '../types';
 
 export const mockModels: ApartmentModel[] = [
@@ -76,6 +78,19 @@ export const mockOwnerProfiles: OwnerProfile[] = [
     purchaseMode: 'CONTADO',
     ownerContracts: [{ id: 'oc-2', apartment: { tower: { id: 'tow-B1', code: 'B1', sector: 'B' }, unitNumber: '201' } }],
   },
+  {
+    id: 'own-3',
+    userId: 'usr-owner-3',
+    fullName: 'Ing. Fernando Jose Castillo',
+    dpi: '1984 56214 0101',
+    nit: '1245789-0',
+    phonePrimary: '+502 5123-9874',
+    email: 'fernando.castillo@inversion.gt',
+    purchaseMode: 'HIPOTECA_FHA',
+    bankName: 'Banrural',
+    monthlyBankQuotaGtq: 2600.0,
+    ownerContracts: [{ id: 'oc-3', apartment: { tower: { id: 'tow-C1', code: 'C1', sector: 'C' }, unitNumber: '302' } }],
+  },
 ];
 
 export const mockTenantProfiles: TenantProfile[] = [
@@ -121,6 +136,29 @@ export const mockTenantProfiles: TenantProfile[] = [
         paymentDay: 5,
         startDate: '2026-04-01',
         endDate: '2026-10-01',
+        monthlyRentGtq: 2600.0,
+        depositGtq: 2600.0,
+        status: 'ACTIVO',
+      },
+    ],
+  },
+  {
+    id: 'ten-3',
+    userId: 'usr-tenant-3',
+    fullName: 'Mario Roberto Estrada Lima',
+    dpi: '2145 98765 0101',
+    nit: '6547891-2',
+    phonePrimary: '+502 5987-1234',
+    email: 'mario.estrada@gmail.com',
+    workplace: 'Banco G&T Continental',
+    tenantContracts: [
+      {
+        id: 'tc-3',
+        apartmentId: 'apt-C1-301',
+        tenantId: 'ten-3',
+        paymentDay: 5,
+        startDate: '2026-05-01',
+        endDate: '2026-11-01',
         monthlyRentGtq: 2400.0,
         depositGtq: 2400.0,
         status: 'ACTIVO',
@@ -195,8 +233,19 @@ towerCodes.forEach((towerCode) => {
         status = 'MANTENIMIENTO';
       } else if ((level + door) % 5 === 0) {
         status = 'ALQUILADO';
-        tenant = mockTenantProfiles[1];
-        owner = mockOwnerProfiles[0];
+        tenant = mockTenantProfiles[2];
+        owner = mockOwnerProfiles[2];
+        activeContract = {
+          id: `tc-${towerCode}-${unitNumber}`,
+          apartmentId: `apt-${towerCode}-${unitNumber}`,
+          tenantId: 'ten-3',
+          paymentDay: 5,
+          startDate: '2026-05-01T00:00:00Z',
+          endDate: '2026-11-01T00:00:00Z',
+          monthlyRentGtq: 2400.0,
+          depositGtq: 2400.0,
+          status: 'ACTIVO',
+        };
       }
 
       mockApartments.push({
@@ -235,6 +284,97 @@ towerCodes.forEach((towerCode) => {
   }
 });
 
+// Lista completa de pagos para PaymentsPage
+export const mockPaymentsList: Payment[] = [
+  {
+    id: 'pay-1',
+    userId: 'usr-tenant-1',
+    apartmentId: 'apt-A1-101',
+    apartment: mockApartments.find((a) => a.id === 'apt-A1-101') || mockApartments[0],
+    user: { id: 'usr-tenant-1', email: 'juan.perez@inquilino.gt', role: 'TENANT', tenantProfile: mockTenantProfiles[0] },
+    concept: 'RENTA',
+    amountGtq: 2400.0,
+    dueDate: '2026-08-05T00:00:00Z',
+    paidAt: '2026-08-04T12:00:00Z',
+    status: 'APROBADO',
+    voucherReference: 'TRANS-884125',
+    bankOrigin: 'Banco Industrial (BI)',
+    verifiedAt: '2026-08-04T14:00:00Z',
+    verifiedBy: 'SuperAdmin Altabrisa',
+  },
+  {
+    id: 'pay-2',
+    userId: 'usr-tenant-2',
+    apartmentId: 'apt-B2-204',
+    apartment: mockApartments.find((a) => a.id === 'apt-B2-204') || mockApartments[1],
+    user: { id: 'usr-tenant-2', email: 'lucia.alvarez@inquilino.gt', role: 'TENANT', tenantProfile: mockTenantProfiles[1] },
+    concept: 'RENTA',
+    amountGtq: 2600.0,
+    dueDate: '2026-08-05T00:00:00Z',
+    status: 'EN_REVISION',
+    voucherReference: 'BANRURAL-44589',
+    bankOrigin: 'Banrural',
+    notes: 'Boleta de depósito en agencia bancaria.',
+  },
+  {
+    id: 'pay-3',
+    userId: 'usr-tenant-3',
+    apartmentId: 'apt-C1-301',
+    apartment: mockApartments.find((a) => a.id === 'apt-C1-301') || mockApartments[2],
+    user: { id: 'usr-tenant-3', email: 'mario.estrada@gmail.com', role: 'TENANT', tenantProfile: mockTenantProfiles[2] },
+    concept: 'RENTA',
+    amountGtq: 2400.0,
+    dueDate: '2026-08-05T00:00:00Z',
+    paidAt: '2026-08-03T10:00:00Z',
+    status: 'APROBADO',
+    voucherReference: 'BAC-774129',
+    bankOrigin: 'BAC Credomatic',
+    verifiedAt: '2026-08-03T11:30:00Z',
+    verifiedBy: 'SuperAdmin Altabrisa',
+  },
+  {
+    id: 'pay-4',
+    userId: 'usr-owner-1',
+    apartmentId: 'apt-A1-101',
+    apartment: mockApartments.find((a) => a.id === 'apt-A1-101') || mockApartments[0],
+    user: { id: 'usr-owner-1', email: 'carlos.mendoza@gmail.com', role: 'OWNER', ownerProfile: mockOwnerProfiles[0] },
+    concept: 'MANTENIMIENTO',
+    amountGtq: 350.0,
+    dueDate: '2026-08-10T00:00:00Z',
+    paidAt: '2026-08-08T16:00:00Z',
+    status: 'APROBADO',
+    voucherReference: 'BI-995123',
+    bankOrigin: 'Banco Industrial (BI)',
+    verifiedAt: '2026-08-08T17:00:00Z',
+    verifiedBy: 'SuperAdmin Altabrisa',
+  },
+  {
+    id: 'pay-5',
+    userId: 'usr-tenant-2',
+    apartmentId: 'apt-B2-204',
+    apartment: mockApartments.find((a) => a.id === 'apt-B2-204') || mockApartments[1],
+    user: { id: 'usr-tenant-2', email: 'lucia.alvarez@inquilino.gt', role: 'TENANT', tenantProfile: mockTenantProfiles[1] },
+    concept: 'MANTENIMIENTO',
+    amountGtq: 350.0,
+    dueDate: '2026-08-10T00:00:00Z',
+    status: 'PENDIENTE',
+  },
+  {
+    id: 'pay-6',
+    userId: 'usr-tenant-1',
+    apartmentId: 'apt-A1-101',
+    apartment: mockApartments.find((a) => a.id === 'apt-A1-101') || mockApartments[0],
+    user: { id: 'usr-tenant-1', email: 'juan.perez@inquilino.gt', role: 'TENANT', tenantProfile: mockTenantProfiles[0] },
+    concept: 'AGUA',
+    amountGtq: 150.0,
+    dueDate: '2026-08-15T00:00:00Z',
+    paidAt: '2026-08-14T09:00:00Z',
+    status: 'APROBADO',
+    voucherReference: 'BI-112458',
+    bankOrigin: 'Banco Industrial (BI)',
+  },
+];
+
 export const mockDashboardStats: DashboardStats = {
   towers: {
     total: 10,
@@ -261,69 +401,14 @@ export const mockDashboardStats: DashboardStats = {
     vouchersToReview: 1,
     profileChangeRequests: 1,
   },
-  recentPayments: [
-    {
-      id: 'pay-rec-1',
-      userId: 'usr-tenant-1',
-      apartmentId: 'apt-A1-101',
-      apartment: {
-        id: 'apt-A1-101',
-        towerId: 'tow-A1',
-        unitNumber: '101',
-        level: 1,
-        status: 'ALQUILADO',
-        maintenanceFeeGtq: 350,
-        model: mockModels[0],
-        tower: { id: 'tow-A1', code: 'A1', sector: 'A' },
-      },
-      user: { id: 'usr-tenant-1', email: 'juan.perez@inquilino.gt', role: 'TENANT', tenantProfile: mockTenantProfiles[0] },
-      concept: 'RENTA',
-      amountGtq: 2400.0,
-      dueDate: '2026-08-05T00:00:00Z',
-      paidAt: '2026-08-04T12:00:00Z',
-      status: 'APROBADO',
-      voucherReference: 'TRANS-884125',
-      bankOrigin: 'Banco Industrial (BI)',
-    },
-    {
-      id: 'pay-rec-2',
-      userId: 'usr-tenant-2',
-      apartmentId: 'apt-B2-204',
-      apartment: {
-        id: 'apt-B2-204',
-        towerId: 'tow-B2',
-        unitNumber: '204',
-        level: 2,
-        status: 'MORA',
-        maintenanceFeeGtq: 350,
-        model: mockModels[1],
-        tower: { id: 'tow-B2', code: 'B2', sector: 'B' },
-      },
-      user: { id: 'usr-tenant-2', email: 'lucia.alvarez@inquilino.gt', role: 'TENANT', tenantProfile: mockTenantProfiles[1] },
-      concept: 'RENTA',
-      amountGtq: 2600.0,
-      dueDate: '2026-08-05T00:00:00Z',
-      status: 'EN_REVISION',
-      voucherReference: 'BANRURAL-44589',
-      bankOrigin: 'Banrural',
-    },
-  ],
+  recentPayments: mockPaymentsList.slice(0, 4),
 };
 
 export const mockContracts: TenantContract[] = [
   {
     id: 'tc-1',
     apartmentId: 'apt-A1-101',
-    apartment: {
-      id: 'apt-A1-101',
-      towerId: 'tow-A1',
-      unitNumber: '101',
-      level: 1,
-      status: 'ALQUILADO',
-      maintenanceFeeGtq: 350,
-      tower: { id: 'tow-A1', code: 'A1', sector: 'A' },
-      model: mockModels[0],
-    },
+    apartment: mockApartments.find((a) => a.id === 'apt-A1-101') || mockApartments[0],
     tenantId: 'ten-1',
     tenant: mockTenantProfiles[0],
     paymentDay: 5,
@@ -336,16 +421,7 @@ export const mockContracts: TenantContract[] = [
   {
     id: 'tc-2',
     apartmentId: 'apt-B2-204',
-    apartment: {
-      id: 'apt-B2-204',
-      towerId: 'tow-B2',
-      unitNumber: '204',
-      level: 2,
-      status: 'MORA',
-      maintenanceFeeGtq: 350,
-      tower: { id: 'tow-B2', code: 'B2', sector: 'B' },
-      model: mockModels[1],
-    },
+    apartment: mockApartments.find((a) => a.id === 'apt-B2-204') || mockApartments[1],
     tenantId: 'ten-2',
     tenant: mockTenantProfiles[1],
     paymentDay: 5,
@@ -354,6 +430,65 @@ export const mockContracts: TenantContract[] = [
     monthlyRentGtq: 2600.0,
     depositGtq: 2600.0,
     status: 'ACTIVO',
+  },
+  {
+    id: 'tc-3',
+    apartmentId: 'apt-C1-301',
+    apartment: mockApartments.find((a) => a.id === 'apt-C1-301') || mockApartments[2],
+    tenantId: 'ten-3',
+    tenant: mockTenantProfiles[2],
+    paymentDay: 5,
+    startDate: '2026-05-01T00:00:00Z',
+    endDate: '2026-11-01T00:00:00Z',
+    monthlyRentGtq: 2400.0,
+    depositGtq: 2400.0,
+    status: 'ACTIVO',
+  },
+];
+
+export const mockProfileChangeRequests: ProfileChangeRequest[] = [
+  {
+    id: 'req-1',
+    userId: 'usr-tenant-1',
+    fieldName: 'phonePrimary',
+    oldValue: '+502 5874-9632',
+    newValue: '+502 4112-9900',
+    reason: 'Nueva línea corporativa de residencia',
+    status: 'PENDIENTE',
+    createdAt: new Date().toISOString(),
+    user: {
+      email: 'juan.perez@inquilino.gt',
+      tenantProfile: mockTenantProfiles[0],
+    },
+  },
+  {
+    id: 'req-2',
+    userId: 'usr-owner-1',
+    fieldName: 'nit',
+    oldValue: '4587962-1',
+    newValue: '9984125-3',
+    reason: 'Actualización ante SAT para emisión de facturas',
+    status: 'PENDIENTE',
+    createdAt: new Date().toISOString(),
+    user: {
+      email: 'carlos.mendoza@gmail.com',
+      ownerProfile: mockOwnerProfiles[0],
+    },
+  },
+  {
+    id: 'req-3',
+    userId: 'usr-tenant-2',
+    fieldName: 'emergencyContact',
+    oldValue: 'David Álvarez - 4512-3698',
+    newValue: 'David Álvarez (Esposo) - 3322-1100',
+    reason: 'Nuevo número de contacto',
+    status: 'APROBADO',
+    resolvedAt: '2026-08-15T10:00:00Z',
+    createdAt: '2026-08-14T08:00:00Z',
+    user: {
+      email: 'lucia.alvarez@inquilino.gt',
+      tenantProfile: mockTenantProfiles[1],
+    },
   },
 ];
 
