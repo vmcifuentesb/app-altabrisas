@@ -1,0 +1,296 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  OWNER
+  TENANT
+}
+
+enum ApartmentStatus {
+  DISPONIBLE
+  ALQUILADO
+  MORA
+  MANTENIMIENTO
+  RESERVADO
+}
+
+enum PurchaseMode {
+  CONTADO
+  HIPOTECA_FHA
+  HIPOTECA_BANCO
+  PRESTAMO_DIRECTO
+}
+
+enum ContractStatus {
+  ACTIVO
+  POR_VENCER_30D
+  RENOVADO
+  FINALIZADO
+  CANCELADO
+}
+
+enum PaymentConcept {
+  RENTA
+  MANTENIMIENTO
+  AGUA
+  LUZ
+  INTERNET
+  OTRO
+}
+
+enum PaymentStatus {
+  PENDIENTE
+  EN_REVISION
+  APROBADO
+  RECHAZADO
+}
+
+enum RequestStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  role          Role      @default(TENANT)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  ownerProfile  OwnerProfile?
+  tenantProfile TenantProfile?
+  payments      Payment[]
+  changeRequests ProfileChangeRequest[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+}
+
+model Tower {
+  id          String        @id @default(uuid())
+  code        String        @unique // A1, A2, A3, A4, A5, B1, B2, C1, C2, D1, D2
+  sector      String        // A, B, C, D
+  totalLevels Int           @default(4)
+  description String?
+  apartments  Apartment[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model ApartmentModel {
+  id              String      @id @default(uuid())
+  name            String      @unique // Roma, Milán, Turín
+  areaM2          Float
+  rooms           Int
+  bathrooms       Int
+  hasKitchenette  Boolean     @default(false)
+  hasLaundry      Boolean     @default(false)
+  description     String?
+  floorPlanImage  String?
+  apartments      Apartment[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model Apartment {
+  id                 String           @id @default(uuid())
+  towerId            String
+  modelId            String
+  unitNumber         String           // ej. 101, 202, 303
+  level              Int
+  parkingSpot        String?
+  status             ApartmentStatus  @default(DISPONIBLE)
+  
+  // Servicios y Contadores
+  powerMeterNumber   String?          // Contador EEGSA
+  waterMeterNumber   String?          // Contador Agua Potable
+  internetProvider   String?          // Claro, Tigo, etc.
+  maintenanceFeeGtq  Float            @default(350.00) // Cuota de mantenimiento mensual
+
+  tower              Tower            @relation(fields: [towerId], references: [id])
+  model              ApartmentModel   @relation(fields: [modelId], references: [id])
+  
+  ownerContracts     OwnerContract[]
+  tenantContracts    TenantContract[]
+  payments           Payment[]
+  rentalHistories    RentalHistory[]
+  
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([towerId, unitNumber])
+}
+
+model OwnerProfile {
+  id                    String        @id @default(uuid())
+  userId                String        @unique
+  fullName              String
+  dpi                   String        @unique
+  nit                   String?
+  phonePrimary          String
+  phoneSecondary        String?
+  email                 String
+  address               String?
+  emergencyContact      String?
+  
+  // Perfil Financiero
+  purchaseMode          PurchaseMode  @default(CONTADO)
+  bankName              String?       // BANRURAL, BI, BAC, G&T, CHN
+  loanTermYears         Int?          // Plazo en años
+  monthlyBankQuotaGtq   Float?        // Cuota mensual hipoteca
+  estimatedBalanceGtq   Float?        // Saldo estimado pendiente
+  
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownerContracts        OwnerContract[]
+  
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}
+
+model TenantProfile {
+  id               String           @id @default(uuid())
+  userId           String           @unique
+  fullName         String
+  dpi              String           @unique
+  nit              String?
+  phonePrimary     String
+  phoneSecondary   String?
+  email            String
+  emergencyContact String?
+  workplace        String?
+  
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantContracts  TenantContract[]
+  
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model OwnerContract {
+  id              String       @id @default(uuid())
+  apartmentId     String
+  ownerId         String
+  contractType    String       @default("ADMINISTRACION") // ADMINISTRACION, VENTA, PODER
+  startDate       DateTime
+  endDate         DateTime?
+  commissionPct   Float        @default(10.0) // % de comisión inmobiliaria
+  documentUrl     String?
+  notes           String?
+  
+  apartment       Apartment    @relation(fields: [apartmentId], references: [id])
+  owner           OwnerProfile @relation(fields: [ownerId], references: [id])
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model TenantContract {
+  id              String          @id @default(uuid())
+  apartmentId     String
+  tenantId        String
+  startDate       DateTime
+  endDate         DateTime        // 6 meses exactos
+  monthlyRentGtq  Float
+  depositGtq      Float
+  paymentDay      Int             @default(5) // Día del mes límite de pago
+  status          ContractStatus  @default(ACTIVO)
+  documentUrl     String?
+  
+  apartment       Apartment       @relation(fields: [apartmentId], references: [id])
+  tenant          TenantProfile   @relation(fields: [tenantId], references: [id])
+  payments        Payment[]
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model Payment {
+  id               String          @id @default(uuid())
+  contractId       String?
+  apartmentId      String
+  userId           String
+  concept          PaymentConcept
+  amountGtq        Float
+  dueDate          DateTime
+  paidAt           DateTime?
+  bankOrigin       String?         // BANRURAL, BI, BAC, G&T
+  voucherReference String?         // No. de Boleta o Transferencia
+  voucherUrl       String?         // URL o ruta del comprobante
+  status           PaymentStatus   @default(PENDIENTE)
+  notes            String?
+  verifiedAt       DateTime?
+  verifiedBy       String?
+  
+  contract         TenantContract? @relation(fields: [contractId], references: [id])
+  apartment        Apartment       @relation(fields: [apartmentId], references: [id])
+  user             User            @relation(fields: [userId], references: [id])
+  
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model RentalHistory {
+  id             String    @id @default(uuid())
+  apartmentId    String
+  tenantName     String
+  tenantDpi      String?
+  startDate      DateTime
+  endDate        DateTime
+  monthlyRentGtq Float
+  notes          String?
+  
+  apartment      Apartment @relation(fields: [apartmentId], references: [id])
+  createdAt      DateTime  @default(now())
+}
+
+model ProfileChangeRequest {
+  id           String        @id @default(uuid())
+  userId       String
+  fieldName    String        // ej. phonePrimary, email, nit, emergencyContact
+  oldValue     String?
+  newValue     String
+  reason       String?
+  status       RequestStatus @default(PENDIENTE)
+  adminNotes   String?
+  resolvedAt   DateTime?
+  
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, WARNING, SUCCESS, ALERT
+  isRead    Boolean  @default(false)
+  link      String?
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  ipAddress String?
+  
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}
